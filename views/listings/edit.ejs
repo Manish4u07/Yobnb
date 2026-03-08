@@ -3,7 +3,8 @@
         <div class="col-8 offset-2">
             <h3>Edit your Listing
             </h3>
-            <form action="/listings/<%=listing.id%>?_method=PUT" method="post" novalidate class="needs-validation">
+            <form action="/listings/<%=listing.id%>?_method=PUT" method="post" enctype="multipart/form-data" novalidate
+                class="needs-validation">
                 <div class="mb-3">
                     <label for="title" class="form-label">Title</label>
                     <input type="text" name="listing[title]" value="<%=listing.title%>" class=" form-control" required>
@@ -15,10 +16,13 @@
                         required><%=listing.description%></textarea>
                     <div class="invalid-feedback">Please enter a short description</div>
                 </div>
-
+                <div class="card col-6  listing-card">
+                    <p>Original Listing Image  </p>
+                    <img src="<%=listing.image.url%>" class="card-img-top show-img listing-card" alt="Listing image">
+                </div>
                 <div class="mb-3">
-                    <label for="image" class="form-label">Image Link</label>
-                    <input type="text" name="lisitng[image]" value="<%=listing.image%>" class="form-control" required>
+                    <label for="image" class="form-label">Upload New Image</label>
+                    <input type="file" name="image" value="<%=listing.image.url%>" class="form-control">
                 </div>
                 <div class="row">
                     <div class="mb-3 col-md-4">
@@ -39,8 +43,8 @@
                     <input type="text" name="listing[location]" value="<%=listing.location%>" class="form-control"
                         required>
                     <div class="invalid-feedback">Location should be valid</div>
+                    <button class="btn btn-dark edit-btn mt-3">Edit</button>
                 </div>
-                <button class="btn btn-dark edit-btn mt-3">Edit</button>
             </form>
         </div>
     </div>

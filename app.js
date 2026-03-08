@@ -1,14 +1,27 @@
+if (process.env.NODE_ENV != "production") {
+    require("dotenv").config();
+}
+
+
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
-const Listing = require("./models/listing");
+const ExpressError = require("./utils/ExpressError.js");
 const path = require("path");
 const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
-const wrapAsync = require("./utils/wrapAsync.js");
-const ExpressError = require("./utils/ExpressError.js");
-// const { wrap } = require("module");
-const { listingSchema } = require("./schema.js");
+const session = require("express-session");
+const flash = require("connect-flash");
+const passport = require("passport");
+const LocalStrategy = require("passport-local");
+const User = require("./models/user.js");
+
+
+
+//router objects
+const listingRouter = require("./routes/listings.js");
+const reviewRouter = require("./routes/reviews.js");
+const userRouter = require("./routes/user.js");
 
 
 main()
@@ -20,7 +33,7 @@ main()
 
 
 async function main() {
-    mongoose.connect("mongodb://127.0.0.1:27017/Svietbnb");
+    mongoose.connect("mongodb://127.0.0.1:27017/Yobnb");
 }
 
 
@@ -33,97 +46,54 @@ app.use(methodOverride("_method"));
 app.engine("ejs", ejsMate);
 
 
-app.get("/", (req, res) => {
-    res.send("Root page");
-});
-
-//Joi 
-const validateListing = (req, res, next) => {
-    let { error } = listingSchema.validate(req.body);
-    if (error) {
-        throw new ExpressError(400, error);
-    } else {
-        next();
-    }
+const sessionOptions = {
+    secret: "MySecretcode",
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+    },
 };
 
 
-//Index route
-app.get("/listings", validateListing, wrapAsync(async (req, res) => {
-    let allListings = await Listing.find({});
-    res.render("./listings/index.ejs", { allListings });
-}));
+
+// app.get("/", (req, res) => {
+//     res.send("Root page");
+// });
 
 
-//new route
-app.get("/listings/new", (req, res) => {
-    res.render("./listings/new.ejs");
+app.use(session(sessionOptions));
+app.use(flash());
+
+//passport uses session
+app.use(passport.initialize());
+app.use(passport.session());
+passport.use(new LocalStrategy(User.authenticate()));
+
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
+app.use((req, res, next) => {
+    res.locals.success = req.flash("success");
+    res.locals.error = req.flash("error");
+    res.locals.currUser = req.user;
+    next();
 });
 
 
-//Create route
-app.post("/listings", wrapAsync(async (req, res) => {
-    const newListing = new Listing(req.body.listing);
-    await newListing.save();
-    res.redirect("/listings");
-}));
-
-
-//Show route
-app.get("/listings/:id", validateListing, wrapAsync(async (req, res) => {
-    let { id } = req.params;
-    const listing = await Listing.findById(id);
-    res.render('./listings/show.ejs', { listing });
-}));
-
-
-//Edit route
-app.get("/listings/:id/edit", wrapAsync(async (req, res) => {
-    let { id } = req.params;
-    const listing = await Listing.findById(id);
-    res.render("./listings/edit.ejs", { listing });
-}));
-
-
-//update route
-app.put("/listings/:id", validateListing, wrapAsync(async (req, res) => {
-    let { id } = req.params;
-    await Listing.findByIdAndUpdate(id, { ...req.body.listing }, { new: true, runValidators: true });
-    res.redirect(`/listings/${id}`);
-}));
-
-//destroy route
-app.delete("/listings/:id", wrapAsync(async (req, res) => {
-    let { id } = req.params;
-    let deletedListing = await Listing.findByIdAndDelete(id);
-    console.log(deletedListing);
-    res.redirect("/listings");
-
-}));
-
-
-
-
-//testListing
-// app.get("/testlisting", async (req,res) => {
-//     let newListing =new Listing({
-//         title: "Hotel PLaza",
-//         description: "Deluxe, air conditioned double bed queen size room",
-//         price : 5000,
-//         location :"Sviet hostel j-block",
-//         country :"India",
-//     });
-
-//     await newListing.save();
-//     console.log("Sample data saved");
-//     res.send("Successfull");
-// });
+//router-listings
+app.use("/listings", listingRouter);
+//router-review 
+app.use("/listings/:id/reviews", reviewRouter);
+//router-users
+app.use("/", userRouter);
 
 
 app.all(/.*/, (req, res, next) => {
     next(new ExpressError(404, "Page Not Found"));
 });
-
 
 //Error handling middleWares
 app.use((err, req, res, next) => {
@@ -136,4 +106,4 @@ app.use((err, req, res, next) => {
 
 app.listen(1010, () => {
     console.log("Server is listening on port: 1010");
-})
+});
