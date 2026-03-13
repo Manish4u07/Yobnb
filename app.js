@@ -11,11 +11,13 @@ const path = require("path");
 const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
 const session = require("express-session");
+const MongoStore = require("connect-mongo").default;
 const flash = require("connect-flash");
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
 const User = require("./models/user.js");
 
+const dbUrl = process.env.MONGO_URL;
 
 
 //router objects
@@ -33,7 +35,7 @@ main()
 
 
 async function main() {
-    mongoose.connect("mongodb://127.0.0.1:27017/Yobnb");
+    mongoose.connect(dbUrl);
 }
 
 
@@ -45,9 +47,21 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(methodOverride("_method"));
 app.engine("ejs", ejsMate);
 
+const store = MongoStore.create({
+    mongoUrl: dbUrl,
+    crypto: {
+        secret: process.env.SECRET,
+    },
+    touchAfter: 24 * 3600,
+});
+
+store.on("error", (err) => {
+    console.log("Error in Mongo session store", err);
+})
 
 const sessionOptions = {
-    secret: "MySecretcode",
+    store,
+    secret: process.env.SECRET,
     resave: false,
     saveUninitialized: true,
     cookie: {
@@ -62,6 +76,8 @@ const sessionOptions = {
 // app.get("/", (req, res) => {
 //     res.send("Root page");
 // });
+
+
 
 
 app.use(session(sessionOptions));
